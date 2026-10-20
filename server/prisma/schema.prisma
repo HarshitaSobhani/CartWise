@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SourceKind {
+  DEMO
+  CSV
+  API
+}
+
+enum ObservationOrigin {
+  DEMO
+  CSV_IMPORT
+  EXTERNAL
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum JobType {
+  CSV_PRODUCTS
+  CSV_PRICES
+  REFRESH_SOURCE
+}
+
+enum AlertStatus {
+  ACTIVE
+  TRIGGERED
+  PAUSED
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  role             Role     @default(USER)
+  emailNotifs      Boolean  @default(false)
+  inAppNotifs      Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  wishlists        Wishlist[]
+  alerts           TargetAlert[]
+  notifications    NotificationEvent[]
+  budgets          Budget[]
+  imports          Import[]
+}
+
+model Source {
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  name         String
+  kind         SourceKind
+  isDemo       Boolean    @default(false)
+  baseUrl      String?
+  enabled      Boolean    @default(true)
+  lastSyncedAt DateTime?
+  products     Product[]
+  observations PriceObservation[]
+  jobs         BackgroundJob[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sourceId    String
+  externalRef String
+  name        String
+  brand       String?
+  category    String
+  description String?
+  imageUrl    String?
+  specs       Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  source      Source   @relation(fields: [sourceId], references: [id])
+  identifiers ProductIdentifier[]
+  observations PriceObservation[]
+  wishlistItems WishlistItem[]
+  alerts      TargetAlert[]
+
+  @@unique([sourceId, externalRef])
+  @@index([category])
+  @@index([name])
+}
+
+model ProductIdentifier {
+  id        String  @id @default(cuid())
+  productId String
+  type      String
+  value     String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([type, value])
+  @@index([productId])
+}
+
+model PriceObservation {
+  id          String            @id @default(cuid())
+  productId   String
+  sourceId    String
+  price       Decimal           @db.Decimal(14, 2)
+  currency    String            @db.Char(3)
+  observedAt  DateTime
+  origin      ObservationOrigin
+  sourceRef   String?
+  sourceUrl   String?
+  importId    String?
+  status      String            @default("OK")
+  dedupeKey   String            @unique
+  createdAt   DateTime          @default(now())
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  source      Source            @relation(fields: [sourceId], references: [id])
+  import      Import?           @relation(fields: [importId], references: [id])
+  notifications NotificationEvent[]
+
+  @@index([productId, observedAt])
+  @@index([sourceId])
+}
+
+model Import {
+  id         String    @id @default(cuid())
+  userId     String
+  type       JobType
+  filename   String
+  status     JobStatus @default(QUEUED)
+  totalRows  Int       @default(0)
+  okRows     Int       @default(0)
+  errorRows  Int       @default(0)
+  errors     Json      @default("[]")
+  payload    String?
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id])
+  observations PriceObservation[]
+  jobs       BackgroundJob[]
+
+  @@index([userId])
+}
+
+model BackgroundJob {
+  id         String    @id @default(cuid())
+  type       JobType
+  status     JobStatus @default(QUEUED)
+  idempotencyKey String @unique
+  sourceId   String?
+  importId   String?
+  attempts   Int       @default(0)
+  maxAttempts Int      @default(3)
+  lastError  String?
+  result     Json?
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  source     Source?   @relation(fields: [sourceId], references: [id])
+  import     Import?   @relation(fields: [importId], references: [id])
+
+  @@index([status])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+
+  @@unique([userId, name])
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  productId  String
+  priority   Int      @default(3)
+  note       String?
+  createdAt  DateTime @default(now())
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([wishlistId, productId])
+}
+
+model TargetAlert {
+  id          String      @id @default(cuid())
+  userId      String
+  productId   String
+  targetPrice Decimal     @db.Decimal(14, 2)
+  currency    String      @db.Char(3)
+  status      AlertStatus @default(ACTIVE)
+  notifyInApp Boolean     @default(true)
+  notifyEmail Boolean     @default(false)
+  armedAt     DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  events      NotificationEvent[]
+
+  @@unique([userId, productId, currency])
+  @@index([productId])
+}
+
+model NotificationEvent {
+  id            String    @id @default(cuid())
+  userId        String
+  alertId       String?
+  observationId String?
+  title         String
+  body          String
+  inApp         Boolean   @default(true)
+  readAt        DateTime?
+  emailedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alert         TargetAlert? @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  observation   PriceObservation? @relation(fields: [observationId], references: [id], onDelete: Cascade)
+
+  @@unique([alertId, observationId])
+  @@index([userId, readAt])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  currency  String   @db.Char(3)
+  limit     Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses  Expense[]
+
+  @@index([userId])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  budgetId    String
+  description String
+  amount      Decimal  @db.Decimal(14, 2)
+  spentAt     DateTime @default(now())
+  budget      Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+}

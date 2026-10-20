@@ -1,0 +1,6 @@
+external_ref,price,currency,observed_at,source_url
+sample-001,abc,USD,2026-10-02T00:00:00Z,
+sample-001,12.345,USD,2026-10-02T00:00:00Z,
+sample-001,12.00,US,2026-10-02T00:00:00Z,
+nope-999,12.00,USD,2026-10-02T00:00:00Z,
+sample-001,12.00,USD,2099-01-01T00:00:00Z,

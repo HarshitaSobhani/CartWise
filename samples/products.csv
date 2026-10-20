@@ -1,0 +1,4 @@
+external_ref,name,brand,category,description,image_url,gtin,sku
+sample-001,Acme Desk Lamp,Acme,Home,LED desk lamp,,12345670,ACME-LAMP-1
+sample-002,Acme Desk Lamp Pro,Acme,Home,Brighter LED desk lamp,,12345687,ACME-LAMP-2
+sample-003,Zenith Water Bottle,Zenith,Sports,Insulated 750ml bottle,,,ZEN-BTL-750

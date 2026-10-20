@@ -1,0 +1,8 @@
+external_ref,price,currency,observed_at,source_url
+sample-001,29.99,USD,2026-09-01T00:00:00Z,
+sample-001,27.49,USD,2026-09-15T00:00:00Z,
+sample-001,24.99,USD,2026-10-01T00:00:00Z,
+sample-002,39.99,USD,2026-09-01T00:00:00Z,
+sample-002,36.99,USD,2026-10-01T00:00:00Z,
+sample-003,18.00,EUR,2026-09-10T00:00:00Z,
+sample-003,16.50,EUR,2026-10-05T00:00:00Z,
